@@ -760,16 +760,25 @@ Strophe.Bosh.prototype = {
                 req.xhr.send(req.data);
             };
 
-            // Implement progressive backoff for reconnects --
-            // First retry (send == 1) should also be instantaneous
-            if (req.sends > 1) {
-                // Using a cube of the retry number creates a nicely
-                // expanding retry window
-                var backoff = Math.min(Math.floor(Strophe.TIMEOUT * this.wait),
-                                       Math.pow(req.sends, 3)) * 1000;
-                setTimeout(sendFunc, backoff);
-            } else {
-                sendFunc();
+            try {
+                // Implement progressive backoff for reconnects --
+                // First retry (send == 1) should also be instantaneous
+                if (req.sends > 1) {
+                    // Using a cube of the retry number creates a nicely
+                    // expanding retry window
+                    var backoff = Math.min(Math.floor(Strophe.TIMEOUT * this.wait),
+                                        Math.pow(req.sends, 3)) * 1000;
+                    setTimeout(sendFunc, backoff);
+                } else {
+                    sendFunc();
+                }
+            } catch (e2) {
+                Strophe.error("XHR has since closed.");
+                if (!this._conn.connected) {
+                    this._conn._changeConnectStatus(Strophe.Status.CONNFAIL, "XHR closed when attempting to send");
+                }
+                this._conn.disconnect();
+                return;
             }
 
             req.sends++;
